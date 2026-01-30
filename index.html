@@ -5,22 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Audio Studio Pro - Architect Edition v6</title>
     
-    <!-- METADATOS TIPO REPRODUCTOR (PARA CANVA) -->
+    <!-- ESTRATEGIA: Apuntar al Player Ligero -->
     <meta name="twitter:card" content="player">
     <meta name="twitter:site" content="@AudioStudioPro">
     <meta name="twitter:title" content="Audio Studio Pro Player">
     <meta name="twitter:description" content="Click para reproducir audio">
-    <meta name="twitter:player" content="https://reproductor-canva.vercel.app/">
+    <!-- TRUCO: Apuntamos al player.html directamente -->
+    <meta name="twitter:player" content="https://reproductor-canva.vercel.app/player.html">
     <meta name="twitter:player:width" content="800">
     <meta name="twitter:player:height" content="400">
     <meta name="twitter:image" content="https://reproductor-canva.vercel.app/preview.png">
 
-    <meta property="og:title" content="Audio Studio Pro Player">
-    <meta property="og:description" content="Click para reproducir audio.">
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://reproductor-canva.vercel.app/">
-    <meta property="og:image" content="https://reproductor-canva.vercel.app/preview.png">
-    
     <link rel="alternate" type="application/json+oembed" href="oembed.json" title="Audio Studio Pro Player">
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -30,7 +25,6 @@
     <style>
         :root { --primary: #00c4cc; --canvas-bg: #0f172a; }
 
-        /* BLINDAJE VISUAL: OCULTAR TODO HASTA QUE ESTÉ ORDENADO */
         body { opacity: 0; transition: opacity 0.5s ease; }
         body.is-ready { opacity: 1; }
 
@@ -55,13 +49,8 @@
             cursor: move; user-select: none; position: absolute; z-index: 50; 
             transition: outline 0.2s, transform 0.1s;
         }
-        /* Bloquear movimiento en modo embed */
-        body.is-embedded .draggable { cursor: default; pointer-events: none; }
-        /* Permitir click en el botón play incluso en modo embed */
-        body.is-embedded #drag-play { pointer-events: auto; cursor: pointer; }
-        
-        .draggable:hover:not(body.is-embedded .draggable) { outline: 2px dashed var(--primary); outline-offset: 14px; }
-        .draggable:active:not(body.is-embedded .draggable) { cursor: grabbing; transform: scale(1.05); }
+        .draggable:hover { outline: 2px dashed var(--primary); outline-offset: 14px; }
+        .draggable:active { cursor: grabbing; transform: scale(1.05); }
 
         #play-btn-main {
             display: flex; align-items: center; justify-content: center;
@@ -91,16 +80,6 @@
         .wave-active { animation: pulse-wave 1.2s infinite ease-in-out; }
 
         #player-master { width: 460px; height: 150px; min-width: 200px; min-height: 80px; display: block; position: relative; }
-
-        /* MODO EMBED (CANVA) */
-        body.is-embedded { background: transparent !important; }
-        body.is-embedded #editor-sidebar, body.is-embedded #workspace-label { display: none !important; }
-        body.is-embedded .canvas-area { 
-            background: transparent !important; padding: 0 !important; 
-            height: 100vh !important; width: 100vw !important; 
-            display: flex; align-items: center; justify-content: center; 
-        }
-        body.is-embedded #main-canvas { height: 100vh !important; width: 100vw !important; padding: 0 !important; }
         
         .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
         .switch input { opacity: 0; width: 0; height: 0; }
@@ -178,19 +157,17 @@
                 </section>
             </div>
 
-            <!-- TAB: CONTENIDO (MEJORADO PARA VOCAROO) -->
+            <!-- TAB: CONTENIDO -->
             <div id="tab-contenido" class="sidebar-tab-content space-y-6">
                 <div class="space-y-3">
                     <label class="text-[11px] font-black text-slate-400 uppercase tracking-widest">Enlace de Audio</label>
-                    
                     <div class="bg-blue-50 border border-blue-200 p-4 rounded-3xl mb-3">
-                         <p class="text-[10px] text-blue-800 font-bold mb-1">💡 Recomendación Pro:</p>
+                         <p class="text-[10px] text-blue-800 font-bold mb-1">💡 Recomendación:</p>
                          <p class="text-[10px] text-blue-600 leading-relaxed">
-                            Usa <b>Vocaroo.com</b> para subir tu audio. Copia el enlace que te dan y pégalo aquí abajo. ¡Es gratis y rápido!
+                            Pega aquí tu enlace de <b>Vocaroo, Dropbox o Google Drive</b>. El sistema lo ajustará automáticamente.
                          </p>
                     </div>
-
-                    <input type="text" id="cfg-audio-url" placeholder="Pega aquí tu link de Vocaroo, Drive o Dropbox..." onchange="window.validateAudioUrl(this)" class="w-full p-5 bg-slate-50 border rounded-3xl text-xs font-black shadow-inner outline-none transition-all focus:border-cyan-500 focus:bg-white">
+                    <input type="text" id="cfg-audio-url" placeholder="https://..." onchange="window.validateAudioUrl(this)" class="w-full p-5 bg-slate-50 border rounded-3xl text-xs font-black shadow-inner outline-none transition-all focus:border-cyan-500 focus:bg-white">
                 </div>
                 <div class="space-y-5">
                     <label class="text-[11px] font-black text-slate-400 uppercase tracking-widest">Metadatos</label>
@@ -278,16 +255,15 @@
         let db, auth;
         let chart; 
 
+        // Solo nos importa el editor. Si hay ID, es que el usuario quiere editar algo existente.
         const urlParams = new URLSearchParams(window.location.search);
         const savedId = urlParams.get('id');
         
-        // --- GESTIÓN DE CARGA SIN PARPADEOS ---
         if (savedId) {
-            document.body.classList.add('is-embedded');
-            document.getElementById('loader').style.opacity = '1';
+             // Ocultamos loader gradualmente
+             setTimeout(() => { document.getElementById('loader').style.display = 'none'; document.body.classList.add('is-ready'); }, 500);
         } else {
              document.getElementById('loader').style.display = 'none';
-             // Efecto Fade-In suave al cargar
              setTimeout(() => document.body.classList.add('is-ready'), 100);
         }
 
@@ -312,19 +288,11 @@
 
         window.validateAudioUrl = (input) => {
             let url = input.value.trim();
-            
-            // --- INTEGRACIÓN VOCAROO INTELIGENTE ---
             if (url.includes('vocaroo.com')) {
-                // Convertir link normal de Vocaroo a link directo de MP3
-                // Ejemplo: https://vocaroo.com/1... -> https://media.vocaroo.com/mp3/1...
                 const parts = url.split('/');
-                const id = parts[parts.length - 1]; // Obtener el ID final
-                if (id) {
-                    url = `https://media.vocaroo.com/mp3/${id}`;
-                    input.value = url; // Mostrar el link convertido
-                }
+                const id = parts[parts.length - 1];
+                if (id) { url = `https://media.vocaroo.com/mp3/${id}`; input.value = url; }
             }
-
             if (url.includes('drive.google.com')) {
                 const match = url.match(/\/d\/(.+?)\//) || url.match(/id=(.+?)(&|$)/);
                 if (match && match[1]) { url = `https://docs.google.com/uc?export=download&id=${match[1]}`; input.value = url; }
@@ -406,9 +374,11 @@
             };
             try {
                 const appId = 'audio-studio-pro'; await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'designs', id), data);
-                // GENERAR URL LIMPIA
+                
+                // === CAMBIO CRUCIAL: EL LINK AHORA APUNTA A PLAYER.HTML ===
                 const baseUrl = "https://reproductor-canva.vercel.app";
-                const url = `${baseUrl}/?id=${id}`;
+                const url = `${baseUrl}/player.html?id=${id}`;
+                
                 document.getElementById('export-url').innerText = url; document.getElementById('modal-export').classList.replace('hidden', 'flex');
             } catch(e) { console.error("Error guardando:", e); }
         };
@@ -443,6 +413,7 @@
         onAuthStateChanged(auth, (u) => {
             currentAuth = u;
             if (u && savedId) {
+                // Modo Edición: Cargar datos para mostrar en el editor
                 getDoc(doc(db, 'artifacts', 'audio-studio-pro', 'public', 'data', 'designs', savedId)).then(snap => {
                     if (snap.exists()) {
                         const d = snap.data(); const g = (id) => document.getElementById(id);
@@ -458,16 +429,8 @@
                         if(d.m3) { g('drag-progress').style.left = d.m3.x + '%'; g('drag-progress').style.top = d.m3.y + '%'; }
                         window.setProgStyle(d.progStyle || 'bar'); window.syncUI();
                     }
-                    const l = document.getElementById('loader');
-                    if (l) {
-                        l.style.opacity = '0';
-                        setTimeout(() => {
-                            l.style.display = 'none';
-                            document.body.classList.add('is-ready');
-                        }, 500);
-                    }
-                }).catch(e => { console.error(e); document.getElementById('loader').style.display = 'none'; });
-            } else if (!savedId) document.getElementById('loader').style.display = 'none';
+                }).catch(e => { console.error(e); });
+            }
         });
 
         window.onload = () => { const c = document.getElementById('audioChart'); if(c) { const ctx = c.getContext('2d'); chart = new Chart(ctx, { type: 'bar', data: { labels: Array(22).fill(''), datasets: [{ data: Array(22).fill(0), backgroundColor: '#00c4cc', borderRadius: 20 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { display: false, min:0, max:100 }, x: { display: false } }, plugins: { legend: false }, animation: false } }); } window.syncUI(); };
