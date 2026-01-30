@@ -7,7 +7,7 @@
   "width": 800,
   "height": 400,
   "html": "<iframe src=\"https://reproductor-canva.vercel.app/\" style=\"width:100%; height:100%; border:0; overflow:hidden;\" frameborder=\"0\" scrolling=\"no\" allow=\"autoplay; encrypted-media; clipboard-write\"></iframe>",
-  "thumbnail_url": "https://TU-URL-DE-VERCEL/preview.png",
+  "thumbnail_url": "https://reproductor-canva.vercel.app/preview.png",
   "thumbnail_width": 800,
   "thumbnail_height": 400
 }
