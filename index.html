@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Audio Studio Pro - Architect Edition v5</title>
+    <title>Audio Studio Pro - Architect Edition v6</title>
     
-    <!-- === ESTRATEGIA DEFINITIVA TIPO VOCAROO === -->
+    <!-- METADATOS TIPO REPRODUCTOR (PARA CANVA) -->
     <meta name="twitter:card" content="player">
     <meta name="twitter:site" content="@AudioStudioPro">
     <meta name="twitter:title" content="Audio Studio Pro Player">
-    <meta name="twitter:description" content="Reproductor de Audio Interactivo">
-    <!-- IMPORTANTE: El player debe apuntar a la raíz, Canva añadirá los parámetros -->
+    <meta name="twitter:description" content="Click para reproducir audio">
     <meta name="twitter:player" content="https://reproductor-canva.vercel.app/">
     <meta name="twitter:player:width" content="800">
     <meta name="twitter:player:height" content="400">
@@ -31,9 +30,9 @@
     <style>
         :root { --primary: #00c4cc; --canvas-bg: #0f172a; }
 
-        /* ELIMINAR DESORDEN INICIAL */
-        body.is-loading #player-master { opacity: 0; }
-        body.is-ready #player-master { opacity: 1; transition: opacity 0.5s ease; }
+        /* BLINDAJE VISUAL: OCULTAR TODO HASTA QUE ESTÉ ORDENADO */
+        body { opacity: 0; transition: opacity 0.5s ease; }
+        body.is-ready { opacity: 1; }
 
         .canvas-area {
             background-color: var(--canvas-bg);
@@ -56,8 +55,11 @@
             cursor: move; user-select: none; position: absolute; z-index: 50; 
             transition: outline 0.2s, transform 0.1s;
         }
-        /* Desactivar hover en modo embed para limpieza visual */
-        body.is-embedded .draggable { cursor: default; }
+        /* Bloquear movimiento en modo embed */
+        body.is-embedded .draggable { cursor: default; pointer-events: none; }
+        /* Permitir click en el botón play incluso en modo embed */
+        body.is-embedded #drag-play { pointer-events: auto; cursor: pointer; }
+        
         .draggable:hover:not(body.is-embedded .draggable) { outline: 2px dashed var(--primary); outline-offset: 14px; }
         .draggable:active:not(body.is-embedded .draggable) { cursor: grabbing; transform: scale(1.05); }
 
@@ -90,7 +92,7 @@
 
         #player-master { width: 460px; height: 150px; min-width: 200px; min-height: 80px; display: block; position: relative; }
 
-        /* AJUSTES PARA EMBED (MODO CANVA) */
+        /* MODO EMBED (CANVA) */
         body.is-embedded { background: transparent !important; }
         body.is-embedded #editor-sidebar, body.is-embedded #workspace-label { display: none !important; }
         body.is-embedded .canvas-area { 
@@ -100,9 +102,6 @@
         }
         body.is-embedded #main-canvas { height: 100vh !important; width: 100vw !important; padding: 0 !important; }
         
-        /* ESTADO DE CARGA DE ARCHIVO */
-        .upload-status { font-size: 10px; font-weight: bold; margin-top: 5px; color: var(--primary); display: none; }
-        
         .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider-toggle { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #334155; transition: .4s; border-radius: 34px; }
@@ -111,18 +110,18 @@
         input:checked + .slider-toggle:before { transform: translateX(20px); }
     </style>
 </head>
-<body id="main-body" class="bg-slate-200 text-slate-900 h-screen overflow-hidden flex is-loading">
+<body id="main-body" class="bg-slate-200 text-slate-900 h-screen overflow-hidden flex">
 
     <div id="loader" class="fixed inset-0 flex flex-col items-center justify-center text-white pointer-events-none opacity-0">
         <div class="w-20 h-20 border-4 border-slate-800 border-t-cyan-400 rounded-full animate-spin mb-6"></div>
-        <p class="text-[12px] font-black tracking-[0.5em] uppercase opacity-40">Cargando Estudio...</p>
+        <p class="text-[12px] font-black tracking-[0.5em] uppercase opacity-40">Iniciando Estudio...</p>
     </div>
 
     <!-- PANEL DE CONTROL -->
     <aside id="editor-sidebar" class="w-[440px] bg-white border-r border-slate-300 flex flex-col h-full z-[100] shadow-2xl">
         <div class="p-8 border-b border-slate-200 bg-slate-50/50">
             <h1 class="text-2xl font-black text-cyan-600 uppercase tracking-tighter leading-none">Audio Studio Pro</h1>
-            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Architect Design Suite v5</p>
+            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Architect Design Suite v6</p>
         </div>
 
         <div class="flex bg-slate-100 border-b border-slate-200">
@@ -134,7 +133,6 @@
         <div class="flex-1 overflow-y-auto p-8 space-y-12">
             <!-- TAB: ESTILO -->
             <div id="tab-estilo" class="sidebar-tab-content active space-y-10">
-                <!-- Secciones de estilo (Idénticas para no perder diseño) -->
                 <section class="space-y-5">
                     <label class="text-[11px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2"><span class="w-6 h-6 bg-cyan-100 text-cyan-600 rounded-lg flex items-center justify-center text-[10px]">1</span> Estructura</label>
                     <div class="space-y-6 p-6 bg-slate-50 rounded-[2rem] border border-slate-200">
@@ -148,8 +146,7 @@
                         </div>
                     </div>
                 </section>
-                <!-- Botón, Texto, Progreso (Omitido por brevedad pero presente en lógica) -->
-                 <section class="space-y-5">
+                <section class="space-y-5">
                     <label class="text-[11px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2"><span class="w-6 h-6 bg-cyan-100 text-cyan-600 rounded-lg flex items-center justify-center text-[10px]">2</span> Botón</label>
                     <div class="space-y-6 p-6 bg-slate-50 rounded-[2rem] border border-slate-200">
                         <div class="grid grid-cols-3 gap-4">
@@ -181,35 +178,28 @@
                 </section>
             </div>
 
-            <!-- TAB: CONTENIDO (MODIFICADO PARA SUBIDA) -->
+            <!-- TAB: CONTENIDO (MEJORADO PARA VOCAROO) -->
             <div id="tab-contenido" class="sidebar-tab-content space-y-6">
                 <div class="space-y-3">
-                    <label class="text-[11px] font-black text-slate-400 uppercase tracking-widest">Fuente de Audio</label>
+                    <label class="text-[11px] font-black text-slate-400 uppercase tracking-widest">Enlace de Audio</label>
                     
-                    <!-- INPUT DE ARCHIVO (NUEVO) -->
-                    <div class="relative group">
-                        <input type="file" id="cfg-audio-file" accept="audio/*" onchange="window.uploadAudio(this)" class="hidden">
-                        <label for="cfg-audio-file" class="flex items-center justify-center w-full p-5 bg-slate-50 border-2 border-dashed border-slate-300 rounded-3xl text-xs font-black text-slate-500 cursor-pointer hover:border-cyan-500 hover:text-cyan-600 transition-all gap-2">
-                            <span>☁️</span> Subir Archivo (MP3/WAV)
-                        </label>
-                    </div>
-                    <div id="upload-msg" class="upload-status text-center">Subiendo...</div>
-
-                    <div class="relative">
-                        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-200"></div></div>
-                        <div class="relative flex justify-center text-xs uppercase"><span class="bg-white px-2 text-slate-400 font-black text-[9px]">O pegar enlace</span></div>
+                    <div class="bg-blue-50 border border-blue-200 p-4 rounded-3xl mb-3">
+                         <p class="text-[10px] text-blue-800 font-bold mb-1">💡 Recomendación Pro:</p>
+                         <p class="text-[10px] text-blue-600 leading-relaxed">
+                            Usa <b>Vocaroo.com</b> para subir tu audio. Copia el enlace que te dan y pégalo aquí abajo. ¡Es gratis y rápido!
+                         </p>
                     </div>
 
-                    <input type="text" id="cfg-audio-url" placeholder="https://..." onchange="window.validateAudioUrl(this)" class="w-full p-5 bg-slate-50 border rounded-3xl text-xs font-black shadow-inner outline-none">
+                    <input type="text" id="cfg-audio-url" placeholder="Pega aquí tu link de Vocaroo, Drive o Dropbox..." onchange="window.validateAudioUrl(this)" class="w-full p-5 bg-slate-50 border rounded-3xl text-xs font-black shadow-inner outline-none transition-all focus:border-cyan-500 focus:bg-white">
                 </div>
                 <div class="space-y-5">
                     <label class="text-[11px] font-black text-slate-400 uppercase tracking-widest">Metadatos</label>
                     <input type="text" id="cfg-track-title" value="Análisis de Frecuencia" oninput="window.syncUI()" class="w-full p-5 bg-slate-50 border rounded-3xl text-xs font-black outline-none">
-                    <input type="text" id="cfg-track-artist" value="Audio Studio Pro v4" oninput="window.syncUI()" class="w-full p-5 bg-slate-50 border rounded-3xl text-xs font-bold outline-none">
+                    <input type="text" id="cfg-track-artist" value="Audio Studio Pro v6" oninput="window.syncUI()" class="w-full p-5 bg-slate-50 border rounded-3xl text-xs font-bold outline-none">
                 </div>
             </div>
             
-            <!-- TAB: PRESETS -->
+             <!-- TAB: PRESETS -->
              <div id="tab-presets" class="sidebar-tab-content space-y-4">
                 <button onclick="window.applyPreset('cyber')" class="w-full p-5 bg-black text-cyan-400 rounded-3xl text-[11px] font-black uppercase text-left border border-cyan-500/40 shadow-xl">Cyber Neon Glass</button>
                 <button onclick="window.applyPreset('executive')" class="w-full p-5 bg-slate-900 text-white rounded-3xl text-[11px] font-black uppercase text-left border border-white/10 shadow-2xl">Executive Mica Dark</button>
@@ -277,8 +267,6 @@
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
         import { getFirestore, doc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
         import { getAuth, signInAnonymously, onAuthStateChanged, setPersistence, inMemoryPersistence } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-        // IMPORTANTE: Módulo de Storage para subir archivos
-        import { getStorage, ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js';
 
         let activeProgStyle = 'bar';
         let isPlaying = false;
@@ -287,51 +275,21 @@
         audio.crossOrigin = "anonymous";
         
         let currentAuth = null;
-        let db, auth, storage;
+        let db, auth;
         let chart; 
 
         const urlParams = new URLSearchParams(window.location.search);
         const savedId = urlParams.get('id');
         
-        // --- LOGICA DE ESTADO (Cargando vs Listo) ---
+        // --- GESTIÓN DE CARGA SIN PARPADEOS ---
         if (savedId) {
             document.body.classList.add('is-embedded');
             document.getElementById('loader').style.opacity = '1';
         } else {
              document.getElementById('loader').style.display = 'none';
-             document.body.classList.remove('is-loading');
-             document.body.classList.add('is-ready');
+             // Efecto Fade-In suave al cargar
+             setTimeout(() => document.body.classList.add('is-ready'), 100);
         }
-
-        // --- SUBIDA DE ARCHIVOS (SOLUCIÓN VOCAROO) ---
-        window.uploadAudio = async (input) => {
-            const file = input.files[0];
-            if (!file) return;
-
-            const status = document.getElementById('upload-msg');
-            status.innerText = "Subiendo archivo...";
-            status.style.display = 'block';
-
-            try {
-                // Crear referencia única para el archivo
-                const storageRef = ref(storage, 'audio/' + Date.now() + '_' + file.name);
-                await uploadBytes(storageRef, file);
-                const url = await getDownloadURL(storageRef);
-                
-                // Poner URL en el input y guardar
-                document.getElementById('cfg-audio-url').value = url;
-                status.innerText = "✅ Archivo listo";
-                status.style.color = "#10b981"; // Verde
-                
-                // Cargar audio inmediatamente
-                window.toggleAudio();
-                
-            } catch (error) {
-                console.error("Error subida:", error);
-                status.innerText = "Error al subir. Habilita Storage en Firebase.";
-                status.style.color = "#ef4444"; // Rojo
-            }
-        };
 
         window.downloadPreview = () => {
             document.fonts.ready.then(() => {
@@ -354,6 +312,19 @@
 
         window.validateAudioUrl = (input) => {
             let url = input.value.trim();
+            
+            // --- INTEGRACIÓN VOCAROO INTELIGENTE ---
+            if (url.includes('vocaroo.com')) {
+                // Convertir link normal de Vocaroo a link directo de MP3
+                // Ejemplo: https://vocaroo.com/1... -> https://media.vocaroo.com/mp3/1...
+                const parts = url.split('/');
+                const id = parts[parts.length - 1]; // Obtener el ID final
+                if (id) {
+                    url = `https://media.vocaroo.com/mp3/${id}`;
+                    input.value = url; // Mostrar el link convertido
+                }
+            }
+
             if (url.includes('drive.google.com')) {
                 const match = url.match(/\/d\/(.+?)\//) || url.match(/id=(.+?)(&|$)/);
                 if (match && match[1]) { url = `https://docs.google.com/uc?export=download&id=${match[1]}`; input.value = url; }
@@ -466,7 +437,7 @@
         }
 
         const firebaseConfig = { apiKey: "AIzaSyBWelUwvZAdKlS4ks7MlL-ALP4f3A0ok88", authDomain: "audiostudiopro-a876a.firebaseapp.com", projectId: "audiostudiopro-a876a", storageBucket: "audiostudiopro-a876a.firebasestorage.app", messagingSenderId: "618218270805", appId: "1:618218270805:web:7c4e63066a770cf095e4dc", measurementId: "G-EE97PW6QZL" };
-        const fbApp = initializeApp(firebaseConfig); auth = getAuth(fbApp); db = getFirestore(fbApp); storage = getStorage(fbApp);
+        const fbApp = initializeApp(firebaseConfig); auth = getAuth(fbApp); db = getFirestore(fbApp);
         setPersistence(auth, inMemoryPersistence).then(() => signInAnonymously(auth)).catch(console.error);
 
         onAuthStateChanged(auth, (u) => {
@@ -487,13 +458,11 @@
                         if(d.m3) { g('drag-progress').style.left = d.m3.x + '%'; g('drag-progress').style.top = d.m3.y + '%'; }
                         window.setProgStyle(d.progStyle || 'bar'); window.syncUI();
                     }
-                    // MOSTRAR INTERFAZ SOLO CUANDO TODO ESTÁ LISTO
                     const l = document.getElementById('loader');
                     if (l) {
                         l.style.opacity = '0';
                         setTimeout(() => {
                             l.style.display = 'none';
-                            document.body.classList.remove('is-loading');
                             document.body.classList.add('is-ready');
                         }, 500);
                     }
