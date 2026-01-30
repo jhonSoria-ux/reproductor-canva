@@ -5,46 +5,40 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Audio Studio Pro - Architect Edition v4</title>
     
-    <!-- === ESTRATEGIA VOCAROO / TICKCOUNTER === -->
-    <!-- Estos sitios funcionan porque usan el "Protocolo de Reproductor Universal". -->
-    <!-- Aunque tienen prefijo 'twitter', son el estándar que usa Canva para detectar reproductores. -->
-    
+    <!-- === ESTRATEGIA VOCAROO (INGENIERÍA INVERSA) === -->
+    <!-- Vocaroo utiliza estrictamente twitter:card=player para la interactividad -->
     <meta name="twitter:card" content="player">
     <meta name="twitter:site" content="@AudioStudioPro">
-    <meta name="twitter:title" content="Audio Studio Pro Player">
-    <meta name="twitter:description" content="Reproductor de Audio Interactivo">
-    <!-- IMPORTANTE: Cambia esto por tu URL final de Vercel -->
-    <meta name="twitter:player" content="https://TU-URL-DE-VERCEL/">
+    <meta name="twitter:title" content="Audio Studio Pro">
+    <meta name="twitter:description" content="Click para reproducir audio">
+    <!-- IMPORTANTE: Reemplaza TU-URL-DE-VERCEL con tu link real -->
+    <meta name="twitter:player" content="https://reproductor-canva.vercel.app/">
     <meta name="twitter:player:width" content="800">
     <meta name="twitter:player:height" content="400">
-    <meta name="twitter:image" content="https://TU-URL-DE-VERCEL/preview.png">
+    <meta name="twitter:image" content="https://reproductor-canva.vercel.app/preview.png">
 
-    <!-- ESTRATEGIA OPEN GRAPH (Respaldo visual) -->
-    <meta property="og:title" content="Audio Studio Pro Player">
+    <!-- OPEN GRAPH (Respaldo visual como TickCounter) -->
+    <meta property="og:title" content="Audio Studio Pro">
     <meta property="og:description" content="Click para reproducir audio.">
-    <meta property="og:type" content="video.other">
+    <!-- Usamos 'website' para evitar conflictos con reproductores de video nativos -->
+    <meta property="og:type" content="website">
     <meta property="og:site_name" content="Audio Studio Pro">
-    <meta property="og:url" content="https://TU-URL-DE-VERCEL/">
-    
-    <!-- IMAGEN DINÁMICA: La que generas con el botón -->
-    <meta property="og:image" content="preview.png">
-    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://reproductor-canva.vercel.app/">
+    <meta property="og:image" content="https://reproductor-canva.vercel.app/preview.png">
     <meta property="og:image:width" content="800">
     <meta property="og:image:height" content="400">
     
-    <!-- Link oEmbed: El mapa oficial para Canva -->
+    <!-- Link oEmbed -->
     <link rel="alternate" type="application/json+oembed" href="oembed.json" title="Audio Studio Pro Player">
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Librería para tomar fotos del diseño -->
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 
     <style>
         :root { --primary: #00c4cc; --canvas-bg: #0f172a; }
 
-        /* FONDO DE MALLA TÉCNICA */
         .canvas-area {
             background-color: var(--canvas-bg);
             background-image: 
@@ -54,7 +48,6 @@
             position: relative;
         }
 
-        /* EFECTO MICA RECALIBRADO */
         .mica-layer {
             backdrop-filter: blur(40px) saturate(250%) contrast(110%) brightness(110%);
             -webkit-backdrop-filter: blur(40px) saturate(250%) contrast(110%) brightness(110%);
@@ -166,7 +159,7 @@
                         </div>
                     </div>
                 </section>
-                <!-- OTRAS SECCIONES (IGUAL QUE ANTES) -->
+                <!-- OTRAS SECCIONES -->
                 <section class="space-y-5">
                     <label class="text-[11px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2"><span class="w-6 h-6 bg-cyan-100 text-cyan-600 rounded-lg flex items-center justify-center text-[10px]">2</span> Botón</label>
                     <div class="space-y-6 p-6 bg-slate-50 rounded-[2rem] border border-slate-200">
@@ -214,7 +207,6 @@
             
             <!-- TAB: PRESETS -->
             <div id="tab-presets" class="sidebar-tab-content space-y-4">
-                <!-- (Botones presets igual que antes) -->
                 <button onclick="window.applyPreset('cyber')" class="w-full p-5 bg-black text-cyan-400 rounded-3xl text-[11px] font-black uppercase text-left border border-cyan-500/40 shadow-xl">Cyber Neon Glass</button>
                 <button onclick="window.applyPreset('executive')" class="w-full p-5 bg-slate-900 text-white rounded-3xl text-[11px] font-black uppercase text-left border border-white/10 shadow-2xl">Executive Mica Dark</button>
                 <button onclick="window.applyPreset('minimal')" class="w-full p-5 bg-white text-slate-900 rounded-3xl text-[11px] font-black uppercase text-left border border-slate-200 shadow-xl">Minimalist Cloud</button>
@@ -306,19 +298,34 @@
              document.getElementById('loader').style.display = 'none';
         }
 
-        // --- FUNCIÓN NUEVA: DESCARGAR PORTADA ---
+        // --- FUNCIÓN MEJORADA: DESCARGAR PORTADA SIN CORTES ---
         window.downloadPreview = () => {
-            const element = document.getElementById("player-master");
-            // Usamos html2canvas para tomar la foto del div player-master
-            html2canvas(element, {
-                backgroundColor: null, // Mantiene transparencia si la hay
-                scale: 2 // Mejor resolución
-            }).then(canvas => {
-                const link = document.createElement('a');
-                link.download = 'preview.png'; // Nombre exacto que necesitamos
-                link.href = canvas.toDataURL("image/png");
-                link.click();
-                alert("✅ Imagen descargada como 'preview.png'.\n\nSube este archivo a GitHub en la misma carpeta que tu index.html.");
+            document.fonts.ready.then(() => {
+                const element = document.getElementById("player-master");
+                html2canvas(element, {
+                    backgroundColor: null,
+                    scale: 3, // Mayor resolución
+                    scrollY: -window.scrollY, // Fix posición
+                    logging: false,
+                    onclone: (clonedDoc) => {
+                        // AQUÍ ESTÁ EL TRUCO: Modificamos el clon, no el original
+                        const titles = clonedDoc.querySelectorAll('#ui-title, #ui-subtitle, #ui-now, #ui-total');
+                        titles.forEach(el => {
+                            // Quitamos truncado y damos espacio para las letras bajas (g, p, q)
+                            el.style.overflow = 'visible'; 
+                            el.style.whiteSpace = 'normal';
+                            el.style.lineHeight = '1.3'; 
+                            el.style.paddingBottom = '10px';
+                            el.style.marginBottom = '-10px'; // Compensamos el padding
+                        });
+                    }
+                }).then(canvas => {
+                    const link = document.createElement('a');
+                    link.download = 'preview.png';
+                    link.href = canvas.toDataURL("image/png");
+                    link.click();
+                    alert("✅ Imagen descargada PERFECTA.\n\nSube este archivo a GitHub en la misma carpeta que tu index.html.");
+                });
             });
         };
 
@@ -468,6 +475,25 @@
         });
 
         window.onload = () => { const c = document.getElementById('audioChart'); if(c) { const ctx = c.getContext('2d'); chart = new Chart(ctx, { type: 'bar', data: { labels: Array(22).fill(''), datasets: [{ data: Array(22).fill(0), backgroundColor: '#00c4cc', borderRadius: 20 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { display: false, min:0, max:100 }, x: { display: false } }, plugins: { legend: false }, animation: false } }); } window.syncUI(); };
+
+        // DRAG LOGIC (Restaurado)
+        let activeMod = null;
+        if (!savedId) {
+            document.addEventListener('mousedown', (e) => {
+                const t = e.target.closest('.draggable');
+                if (t) { activeMod = t; const r = t.getBoundingClientRect(); activeMod._x = e.clientX - r.left; activeMod._y = e.clientY - r.top; }
+            });
+            document.addEventListener('mousemove', (e) => {
+                if (activeMod) {
+                    const p = document.getElementById('player-master').getBoundingClientRect();
+                    let x = ((e.clientX - p.left - activeMod._x) / p.width) * 100;
+                    let y = ((e.clientY - p.top - activeMod._y) / p.height) * 100;
+                    activeMod.style.left = Math.max(0, Math.min(x, 90)) + '%';
+                    activeMod.style.top = Math.max(0, Math.min(y, 85)) + '%';
+                }
+            });
+            document.addEventListener('mouseup', () => activeMod = null);
+        }
     </script>
 </body>
 </html>
