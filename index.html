@@ -3,35 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Audio Studio Pro - Architect Edition v4</title>
+    <title>Audio Studio Pro - Architect Edition v5</title>
     
-    <!-- === ESTRATEGIA VOCAROO (INGENIERÍA INVERSA) === -->
-    <!-- Vocaroo utiliza estrictamente twitter:card=player para la interactividad -->
+    <!-- === ESTRATEGIA DEFINITIVA TIPO VOCAROO === -->
     <meta name="twitter:card" content="player">
     <meta name="twitter:site" content="@AudioStudioPro">
-    <meta name="twitter:title" content="Audio Studio Pro">
-    <meta name="twitter:description" content="Click para reproducir audio">
-    <!-- IMPORTANTE: Reemplaza TU-URL-DE-VERCEL con tu link real -->
+    <meta name="twitter:title" content="Audio Studio Pro Player">
+    <meta name="twitter:description" content="Reproductor de Audio Interactivo">
+    <!-- IMPORTANTE: El player debe apuntar a la raíz, Canva añadirá los parámetros -->
     <meta name="twitter:player" content="https://reproductor-canva.vercel.app/">
     <meta name="twitter:player:width" content="800">
     <meta name="twitter:player:height" content="400">
     <meta name="twitter:image" content="https://reproductor-canva.vercel.app/preview.png">
 
-    <!-- OPEN GRAPH (Respaldo visual como TickCounter) -->
-    <meta property="og:title" content="Audio Studio Pro">
+    <meta property="og:title" content="Audio Studio Pro Player">
     <meta property="og:description" content="Click para reproducir audio.">
-    <!-- Usamos 'website' para evitar conflictos con reproductores de video nativos -->
     <meta property="og:type" content="website">
-    <meta property="og:site_name" content="Audio Studio Pro">
     <meta property="og:url" content="https://reproductor-canva.vercel.app/">
     <meta property="og:image" content="https://reproductor-canva.vercel.app/preview.png">
-    <meta property="og:image:width" content="800">
-    <meta property="og:image:height" content="400">
     
-    <!-- Link oEmbed -->
     <link rel="alternate" type="application/json+oembed" href="oembed.json" title="Audio Studio Pro Player">
 
-    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
@@ -39,13 +31,15 @@
     <style>
         :root { --primary: #00c4cc; --canvas-bg: #0f172a; }
 
+        /* ELIMINAR DESORDEN INICIAL */
+        body.is-loading #player-master { opacity: 0; }
+        body.is-ready #player-master { opacity: 1; transition: opacity 0.5s ease; }
+
         .canvas-area {
             background-color: var(--canvas-bg);
-            background-image: 
-                linear-gradient(rgba(255, 255, 255, 0.1) 1.5px, transparent 1.5px),
-                linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1.5px, transparent 1.5px);
-            background-size: 30px 30px;
-            position: relative;
+            background-image: linear-gradient(rgba(255, 255, 255, 0.1) 1.5px, transparent 1.5px),
+                              linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1.5px, transparent 1.5px);
+            background-size: 30px 30px; position: relative;
         }
 
         .mica-layer {
@@ -62,8 +56,10 @@
             cursor: move; user-select: none; position: absolute; z-index: 50; 
             transition: outline 0.2s, transform 0.1s;
         }
-        .draggable:hover { outline: 2px dashed var(--primary); outline-offset: 14px; }
-        .draggable:active { cursor: grabbing; transform: scale(1.05); }
+        /* Desactivar hover en modo embed para limpieza visual */
+        body.is-embedded .draggable { cursor: default; }
+        .draggable:hover:not(body.is-embedded .draggable) { outline: 2px dashed var(--primary); outline-offset: 14px; }
+        .draggable:active:not(body.is-embedded .draggable) { cursor: grabbing; transform: scale(1.05); }
 
         #play-btn-main {
             display: flex; align-items: center; justify-content: center;
@@ -89,12 +85,10 @@
             border-radius: 50%; cursor: pointer; box-shadow: 0 0 15px rgba(0,196,204,0.4); border: 2px solid white;
         }
 
-        @keyframes pulse-wave {
-            0% { opacity: 0.4; filter: brightness(1); } 50% { opacity: 1; filter: brightness(1.5); } 100% { opacity: 0.4; filter: brightness(1); }
-        }
+        @keyframes pulse-wave { 0% { opacity: 0.4; filter: brightness(1); } 50% { opacity: 1; filter: brightness(1.5); } 100% { opacity: 0.4; filter: brightness(1); } }
         .wave-active { animation: pulse-wave 1.2s infinite ease-in-out; }
 
-        #player-master { width: 460px; height: 150px; min-width: 200px; min-height: 80px; display: block; }
+        #player-master { width: 460px; height: 150px; min-width: 200px; min-height: 80px; display: block; position: relative; }
 
         /* AJUSTES PARA EMBED (MODO CANVA) */
         body.is-embedded { background: transparent !important; }
@@ -105,34 +99,30 @@
             display: flex; align-items: center; justify-content: center; 
         }
         body.is-embedded #main-canvas { height: 100vh !important; width: 100vw !important; padding: 0 !important; }
-        body.is-embedded .draggable:hover { outline: none !important; }
-
+        
+        /* ESTADO DE CARGA DE ARCHIVO */
+        .upload-status { font-size: 10px; font-weight: bold; margin-top: 5px; color: var(--primary); display: none; }
+        
         .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
         .switch input { opacity: 0; width: 0; height: 0; }
-        .slider-toggle {
-            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
-            background-color: #334155; transition: .4s; border-radius: 34px;
-        }
-        .slider-toggle:before {
-            position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px;
-            background-color: white; transition: .4s; border-radius: 50%;
-        }
+        .slider-toggle { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #334155; transition: .4s; border-radius: 34px; }
+        .slider-toggle:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
         input:checked + .slider-toggle { background-color: var(--primary); }
         input:checked + .slider-toggle:before { transform: translateX(20px); }
     </style>
 </head>
-<body id="main-body" class="bg-slate-200 text-slate-900 h-screen overflow-hidden flex">
+<body id="main-body" class="bg-slate-200 text-slate-900 h-screen overflow-hidden flex is-loading">
 
     <div id="loader" class="fixed inset-0 flex flex-col items-center justify-center text-white pointer-events-none opacity-0">
         <div class="w-20 h-20 border-4 border-slate-800 border-t-cyan-400 rounded-full animate-spin mb-6"></div>
-        <p class="text-[12px] font-black tracking-[0.5em] uppercase opacity-40">Optimizando Arquitectura...</p>
+        <p class="text-[12px] font-black tracking-[0.5em] uppercase opacity-40">Cargando Estudio...</p>
     </div>
 
     <!-- PANEL DE CONTROL -->
     <aside id="editor-sidebar" class="w-[440px] bg-white border-r border-slate-300 flex flex-col h-full z-[100] shadow-2xl">
         <div class="p-8 border-b border-slate-200 bg-slate-50/50">
             <h1 class="text-2xl font-black text-cyan-600 uppercase tracking-tighter leading-none">Audio Studio Pro</h1>
-            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Architect Design Suite v4</p>
+            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Architect Design Suite v5</p>
         </div>
 
         <div class="flex bg-slate-100 border-b border-slate-200">
@@ -144,10 +134,9 @@
         <div class="flex-1 overflow-y-auto p-8 space-y-12">
             <!-- TAB: ESTILO -->
             <div id="tab-estilo" class="sidebar-tab-content active space-y-10">
+                <!-- Secciones de estilo (Idénticas para no perder diseño) -->
                 <section class="space-y-5">
-                    <label class="text-[11px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                        <span class="w-6 h-6 bg-cyan-100 text-cyan-600 rounded-lg flex items-center justify-center text-[10px]">1</span> Estructura
-                    </label>
+                    <label class="text-[11px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2"><span class="w-6 h-6 bg-cyan-100 text-cyan-600 rounded-lg flex items-center justify-center text-[10px]">1</span> Estructura</label>
                     <div class="space-y-6 p-6 bg-slate-50 rounded-[2rem] border border-slate-200">
                         <div class="space-y-3"><div class="flex justify-between text-[11px] font-black"><span>Ancho</span><span id="val-w" class="text-cyan-600">460px</span></div><input type="range" id="cfg-w" min="200" max="1000" value="460" oninput="window.syncUI()" class="w-full"></div>
                         <div class="space-y-3"><div class="flex justify-between text-[11px] font-black"><span>Alto</span><span id="val-h" class="text-cyan-600">150px</span></div><input type="range" id="cfg-h" min="80" max="800" value="150" oninput="window.syncUI()" class="w-full"></div>
@@ -159,8 +148,8 @@
                         </div>
                     </div>
                 </section>
-                <!-- OTRAS SECCIONES -->
-                <section class="space-y-5">
+                <!-- Botón, Texto, Progreso (Omitido por brevedad pero presente en lógica) -->
+                 <section class="space-y-5">
                     <label class="text-[11px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2"><span class="w-6 h-6 bg-cyan-100 text-cyan-600 rounded-lg flex items-center justify-center text-[10px]">2</span> Botón</label>
                     <div class="space-y-6 p-6 bg-slate-50 rounded-[2rem] border border-slate-200">
                         <div class="grid grid-cols-3 gap-4">
@@ -192,10 +181,25 @@
                 </section>
             </div>
 
-            <!-- TAB: CONTENIDO -->
+            <!-- TAB: CONTENIDO (MODIFICADO PARA SUBIDA) -->
             <div id="tab-contenido" class="sidebar-tab-content space-y-6">
                 <div class="space-y-3">
-                    <label class="text-[11px] font-black text-slate-400 uppercase tracking-widest">Enlace Audio</label>
+                    <label class="text-[11px] font-black text-slate-400 uppercase tracking-widest">Fuente de Audio</label>
+                    
+                    <!-- INPUT DE ARCHIVO (NUEVO) -->
+                    <div class="relative group">
+                        <input type="file" id="cfg-audio-file" accept="audio/*" onchange="window.uploadAudio(this)" class="hidden">
+                        <label for="cfg-audio-file" class="flex items-center justify-center w-full p-5 bg-slate-50 border-2 border-dashed border-slate-300 rounded-3xl text-xs font-black text-slate-500 cursor-pointer hover:border-cyan-500 hover:text-cyan-600 transition-all gap-2">
+                            <span>☁️</span> Subir Archivo (MP3/WAV)
+                        </label>
+                    </div>
+                    <div id="upload-msg" class="upload-status text-center">Subiendo...</div>
+
+                    <div class="relative">
+                        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-200"></div></div>
+                        <div class="relative flex justify-center text-xs uppercase"><span class="bg-white px-2 text-slate-400 font-black text-[9px]">O pegar enlace</span></div>
+                    </div>
+
                     <input type="text" id="cfg-audio-url" placeholder="https://..." onchange="window.validateAudioUrl(this)" class="w-full p-5 bg-slate-50 border rounded-3xl text-xs font-black shadow-inner outline-none">
                 </div>
                 <div class="space-y-5">
@@ -206,7 +210,7 @@
             </div>
             
             <!-- TAB: PRESETS -->
-            <div id="tab-presets" class="sidebar-tab-content space-y-4">
+             <div id="tab-presets" class="sidebar-tab-content space-y-4">
                 <button onclick="window.applyPreset('cyber')" class="w-full p-5 bg-black text-cyan-400 rounded-3xl text-[11px] font-black uppercase text-left border border-cyan-500/40 shadow-xl">Cyber Neon Glass</button>
                 <button onclick="window.applyPreset('executive')" class="w-full p-5 bg-slate-900 text-white rounded-3xl text-[11px] font-black uppercase text-left border border-white/10 shadow-2xl">Executive Mica Dark</button>
                 <button onclick="window.applyPreset('minimal')" class="w-full p-5 bg-white text-slate-900 rounded-3xl text-[11px] font-black uppercase text-left border border-slate-200 shadow-xl">Minimalist Cloud</button>
@@ -216,11 +220,9 @@
         </div>
 
         <div class="p-8 bg-white border-t border-slate-100 space-y-4">
-            <!-- BOTÓN GENERAR PORTADA -->
             <button onclick="window.downloadPreview()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-black py-4 rounded-[1.5rem] shadow-lg transition-all text-[10px] uppercase tracking-widest flex items-center justify-center gap-2">
                 <span>📸</span> Descargar Portada
             </button>
-            
             <button onclick="window.publish()" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-black py-5 rounded-[2.5rem] shadow-2xl transition-all active:scale-95 text-xs uppercase tracking-widest">
                 Publicar para Canva
             </button>
@@ -243,12 +245,10 @@
                         <svg width="34" height="34" viewBox="0 0 24 24" fill="currentColor"><path id="path-icon" d="M8 5V19L19 12L8 5Z" /></svg>
                     </button>
                 </div>
-                
                 <div id="drag-text" class="draggable" style="top: 35px; left: 140px; width: 280px;">
                     <h3 id="ui-title" class="text-2xl font-black leading-none truncate mb-1 text-white">Análisis de Frecuencia</h3>
                     <p id="ui-subtitle" class="text-[11px] font-black opacity-60 uppercase tracking-widest truncate text-slate-400">Audio Studio Pro v4</p>
                 </div>
-
                 <div id="drag-progress" class="draggable" style="top: 100px; left: 140px; width: 280px;">
                     <div id="progress-ui" class="w-full bg-white/15 rounded-full overflow-hidden relative">
                         <div id="progress-fill" class="h-full transition-all duration-300" style="width: 0%"></div>
@@ -277,6 +277,8 @@
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
         import { getFirestore, doc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
         import { getAuth, signInAnonymously, onAuthStateChanged, setPersistence, inMemoryPersistence } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+        // IMPORTANTE: Módulo de Storage para subir archivos
+        import { getStorage, ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js';
 
         let activeProgStyle = 'bar';
         let isPlaying = false;
@@ -285,46 +287,67 @@
         audio.crossOrigin = "anonymous";
         
         let currentAuth = null;
-        let db, auth;
+        let db, auth, storage;
         let chart; 
 
         const urlParams = new URLSearchParams(window.location.search);
         const savedId = urlParams.get('id');
         
+        // --- LOGICA DE ESTADO (Cargando vs Listo) ---
         if (savedId) {
             document.body.classList.add('is-embedded');
             document.getElementById('loader').style.opacity = '1';
         } else {
              document.getElementById('loader').style.display = 'none';
+             document.body.classList.remove('is-loading');
+             document.body.classList.add('is-ready');
         }
 
-        // --- FUNCIÓN MEJORADA: DESCARGAR PORTADA SIN CORTES ---
+        // --- SUBIDA DE ARCHIVOS (SOLUCIÓN VOCAROO) ---
+        window.uploadAudio = async (input) => {
+            const file = input.files[0];
+            if (!file) return;
+
+            const status = document.getElementById('upload-msg');
+            status.innerText = "Subiendo archivo...";
+            status.style.display = 'block';
+
+            try {
+                // Crear referencia única para el archivo
+                const storageRef = ref(storage, 'audio/' + Date.now() + '_' + file.name);
+                await uploadBytes(storageRef, file);
+                const url = await getDownloadURL(storageRef);
+                
+                // Poner URL en el input y guardar
+                document.getElementById('cfg-audio-url').value = url;
+                status.innerText = "✅ Archivo listo";
+                status.style.color = "#10b981"; // Verde
+                
+                // Cargar audio inmediatamente
+                window.toggleAudio();
+                
+            } catch (error) {
+                console.error("Error subida:", error);
+                status.innerText = "Error al subir. Habilita Storage en Firebase.";
+                status.style.color = "#ef4444"; // Rojo
+            }
+        };
+
         window.downloadPreview = () => {
             document.fonts.ready.then(() => {
                 const element = document.getElementById("player-master");
                 html2canvas(element, {
-                    backgroundColor: null,
-                    scale: 3, // Mayor resolución
-                    scrollY: -window.scrollY, // Fix posición
-                    logging: false,
+                    backgroundColor: null, scale: 3, scrollY: -window.scrollY, logging: false,
                     onclone: (clonedDoc) => {
-                        // AQUÍ ESTÁ EL TRUCO: Modificamos el clon, no el original
                         const titles = clonedDoc.querySelectorAll('#ui-title, #ui-subtitle, #ui-now, #ui-total');
                         titles.forEach(el => {
-                            // Quitamos truncado y damos espacio para las letras bajas (g, p, q)
-                            el.style.overflow = 'visible'; 
-                            el.style.whiteSpace = 'normal';
-                            el.style.lineHeight = '1.3'; 
-                            el.style.paddingBottom = '10px';
-                            el.style.marginBottom = '-10px'; // Compensamos el padding
+                            el.style.overflow = 'visible'; el.style.whiteSpace = 'normal';
+                            el.style.lineHeight = '1.3'; el.style.paddingBottom = '10px'; el.style.marginBottom = '-10px';
                         });
                     }
                 }).then(canvas => {
-                    const link = document.createElement('a');
-                    link.download = 'preview.png';
-                    link.href = canvas.toDataURL("image/png");
-                    link.click();
-                    alert("✅ Imagen descargada PERFECTA.\n\nSube este archivo a GitHub en la misma carpeta que tu index.html.");
+                    const link = document.createElement('a'); link.download = 'preview.png'; link.href = canvas.toDataURL("image/png"); link.click();
+                    alert("✅ Imagen descargada. Sube 'preview.png' a GitHub.");
                 });
             });
         };
@@ -333,15 +356,9 @@
             let url = input.value.trim();
             if (url.includes('drive.google.com')) {
                 const match = url.match(/\/d\/(.+?)\//) || url.match(/id=(.+?)(&|$)/);
-                if (match && match[1]) {
-                    url = `https://docs.google.com/uc?export=download&id=${match[1]}`;
-                    input.value = url;
-                }
+                if (match && match[1]) { url = `https://docs.google.com/uc?export=download&id=${match[1]}`; input.value = url; }
             }
-            if (url.includes('dropbox.com') && url.includes('dl=0')) {
-                url = url.replace('dl=0', 'dl=1');
-                input.value = url;
-            }
+            if (url.includes('dropbox.com') && url.includes('dl=0')) { url = url.replace('dl=0', 'dl=1'); input.value = url; }
             window.syncUI();
         };
 
@@ -418,7 +435,8 @@
             };
             try {
                 const appId = 'audio-studio-pro'; await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'designs', id), data);
-                const baseUrl = window.location.origin;
+                // GENERAR URL LIMPIA
+                const baseUrl = "https://reproductor-canva.vercel.app";
                 const url = `${baseUrl}/?id=${id}`;
                 document.getElementById('export-url').innerText = url; document.getElementById('modal-export').classList.replace('hidden', 'flex');
             } catch(e) { console.error("Error guardando:", e); }
@@ -448,7 +466,7 @@
         }
 
         const firebaseConfig = { apiKey: "AIzaSyBWelUwvZAdKlS4ks7MlL-ALP4f3A0ok88", authDomain: "audiostudiopro-a876a.firebaseapp.com", projectId: "audiostudiopro-a876a", storageBucket: "audiostudiopro-a876a.firebasestorage.app", messagingSenderId: "618218270805", appId: "1:618218270805:web:7c4e63066a770cf095e4dc", measurementId: "G-EE97PW6QZL" };
-        const fbApp = initializeApp(firebaseConfig); auth = getAuth(fbApp); db = getFirestore(fbApp);
+        const fbApp = initializeApp(firebaseConfig); auth = getAuth(fbApp); db = getFirestore(fbApp); storage = getStorage(fbApp);
         setPersistence(auth, inMemoryPersistence).then(() => signInAnonymously(auth)).catch(console.error);
 
         onAuthStateChanged(auth, (u) => {
@@ -469,14 +487,22 @@
                         if(d.m3) { g('drag-progress').style.left = d.m3.x + '%'; g('drag-progress').style.top = d.m3.y + '%'; }
                         window.setProgStyle(d.progStyle || 'bar'); window.syncUI();
                     }
-                    const l = document.getElementById('loader'); if (l) { l.style.opacity = '0'; setTimeout(() => l.style.display = 'none', 500); }
+                    // MOSTRAR INTERFAZ SOLO CUANDO TODO ESTÁ LISTO
+                    const l = document.getElementById('loader');
+                    if (l) {
+                        l.style.opacity = '0';
+                        setTimeout(() => {
+                            l.style.display = 'none';
+                            document.body.classList.remove('is-loading');
+                            document.body.classList.add('is-ready');
+                        }, 500);
+                    }
                 }).catch(e => { console.error(e); document.getElementById('loader').style.display = 'none'; });
             } else if (!savedId) document.getElementById('loader').style.display = 'none';
         });
 
         window.onload = () => { const c = document.getElementById('audioChart'); if(c) { const ctx = c.getContext('2d'); chart = new Chart(ctx, { type: 'bar', data: { labels: Array(22).fill(''), datasets: [{ data: Array(22).fill(0), backgroundColor: '#00c4cc', borderRadius: 20 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { display: false, min:0, max:100 }, x: { display: false } }, plugins: { legend: false }, animation: false } }); } window.syncUI(); };
 
-        // DRAG LOGIC (Restaurado)
         let activeMod = null;
         if (!savedId) {
             document.addEventListener('mousedown', (e) => {
