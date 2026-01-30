@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Audio Studio Pro - Architect Edition v4</title>
+    
+    <!-- Metadatos de Alto Impacto para Canva (Open Graph) -->
+    <meta property="og:title" content="Audio Studio Pro Player">
+    <meta property="og:description" content="Architect Design Suite v4 - Reproductor de Audio para Canva">
+    <meta property="og:type" content="video.other">
+    <meta property="og:site_name" content="Audio Studio Pro">
+    <meta property="og:image" content="https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=800&q=80">
+    <meta property="og:image:width" content="800">
+    <meta property="og:image:height" content="400">
+    
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- LINK OEMBED: CRUCIAL PARA CANVA -->
+    <!-- NOTA: Vercel detectará automáticamente este archivo si está en la raíz -->
+    <link rel="alternate" type="application/json+oembed" href="oembed.json" title="Audio Studio Pro Player">
+
+    <style>
+        :root {
+            --primary: #00c4cc;
+            --canvas-bg: #0f172a;
+        }
+
+        /* FONDO DE MALLA TÉCNICA */
+        .canvas-area {
+            background-color: var(--canvas-bg);
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.1) 1.5px, transparent 1.5px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1.5px, transparent 1.5px);
+            background-size: 30px 30px;
+            position: relative;
+        }
+
+        /* EFECTO MICA RECALIBRADO - VIDRIO PREMIUM */
+        .mica-layer {
+            backdrop-filter: blur(40px) saturate(250%) contrast(110%) brightness(110%);
+            -webkit-backdrop-filter: blur(40px) saturate(250%) contrast(110%) brightness(110%);
+            border: 1.2px solid rgba(255, 255, 255, 0.35);
+            box-shadow: 0 30px 70px -15px rgba(0, 0, 0, 0.6);
+        }
+
+        .sidebar-tab-content { display: none; }
+        .sidebar-tab-content.active { display: block; }
+
+        /* MÓDULOS ARRASTRABLES */
+        .draggable { 
+            cursor: move;
+            user-select: none; 
+            position: absolute; 
+            z-index: 50; 
+            transition: outline 0.2s, transform 0.1s;
+        }
+        .draggable:hover { outline: 2px dashed var(--primary); outline-offset: 14px; }
+        .draggable:active { cursor: grabbing; transform: scale(1.05); }
+
+        /* BOTÓN PLAY */
+        #play-btn-main {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+
+        #play-btn-contour {
+            position: absolute;
+            inset: -8px;
+            border-radius: inherit;
+            border: var(--contour-width, 3px) solid var(--contour-color, rgba(255,255,255,0.4));
+            pointer-events: none;
+            transition: all 0.3s ease;
+        }
+
+        /* TIPOGRAFÍAS */
+        .font-sans { font-family: ui-sans-serif, system-ui, sans-serif; }
+        .font-serif { font-family: ui-serif, Georgia, serif; }
+        .font-mono { font-family: ui-monospace, SFMono-Regular, monospace; }
+        .font-impact { font-family: 'Arial Black', sans-serif; font-weight: 900; }
+
+        #loader { background: #0f172a; transition: opacity 0.5s ease; z-index: 9999; }
+        
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: #cbd5e1;
+            height: 6px;
+            border-radius: 10px;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px; width: 20px;
+            background: var(--primary);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(0,196,204,0.4);
+            border: 2px solid white;
+        }
+
+        @keyframes pulse-wave {
+            0% { opacity: 0.4; filter: brightness(1); }
+            50% { opacity: 1; filter: brightness(1.5); }
+            100% { opacity: 0.4; filter: brightness(1); }
+        }
+        .wave-active { animation: pulse-wave 1.2s infinite ease-in-out; }
+
+        #player-master {
+            width: 460px;
+            height: 150px;
+            min-width: 200px;
+            min-height: 80px;
+            display: block;
+        }
+
+        /* AJUSTES TÉCNICOS PARA EMBED (MODO CANVA) */
+        /* Ocultar UI solo si body tiene la clase is-embedded (cuando hay ID en URL o es iframe) */
+        body.is-embedded { background: transparent !important; }
+        body.is-embedded #editor-sidebar, body.is-embedded #workspace-label { display: none !important; }
+        body.is-embedded .canvas-area { background: transparent !important; padding: 0 !important; height: 100vh !important; width: 100vw !important; display: flex; align-items: center; justify-content: center; }
+        body.is-embedded #main-canvas { height: 100vh !important; width: 100vw !important; padding: 0 !important; }
+        body.is-embedded .draggable:hover { outline: none !important; }
+
+        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider-toggle {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #334155; transition: .4s; border-radius: 34px;
+        }
+        .slider-toggle:before {
+            position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px;
+            background-color: white; transition: .4s; border-radius: 50%;
+        }
+        input:checked + .slider-toggle { background-color: var(--primary); }
+        input:checked + .slider-toggle:before { transform: translateX(20px); }
+    </style>
+</head>
+<body id="main-body" class="bg-slate-200 text-slate-900 h-screen overflow-hidden flex">
+
+    <!-- Pantalla de Carga -->
+    <div id="loader" class="fixed inset-0 flex flex-col items-center justify-center text-white pointer-events-none opacity-0">
+        <div class="w-20 h-20 border-4 border-slate-800 border-t-cyan-400 rounded-full animate-spin mb-6"></div>
+        <p class="text-[12px] font-black tracking-[0.5em] uppercase opacity-40">Optimizando Arquitectura...</p>
+    </div>
+
+    <!-- PANEL DE CONTROL -->
+    <aside id="editor-sidebar" class="w-[440px] bg-white border-r border-slate-300 flex flex-col h-full z-[100] shadow-2xl">
+        <div class="p-8 border-b border-slate-200 bg-slate-50/50">
+            <h1 class="text-2xl font-black text-cyan-600 uppercase tracking-tighter leading-none">Audio Studio Pro</h1>
+            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Architect Design Suite v4</p>
+        </div>
+
+        <div class="flex bg-slate-100 border-b border-slate-200">
+            <button onclick="window.showTab('estilo')" id="btn-estilo" class="flex-1 py-5 text-[11px] font-black uppercase border-b-2 border-cyan-500 text-cyan-600 transition-all">Estilo</button>
+            <button onclick="window.showTab('contenido')" id="btn-contenido" class="flex-1 py-5 text-[11px] font-black uppercase border-b-2 border-transparent text-slate-400 transition-all">Contenido</button>
+            <button onclick="window.showTab('presets')" id="btn-presets" class="flex-1 py-5 text-[11px] font-black uppercase border-b-2 border-transparent text-slate-400 transition-all">Presets</button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-8 space-y-12">
+            <!-- TAB: ESTILO -->
+            <div id="tab-estilo" class="sidebar-tab-content active space-y-10">
+                <section class="space-y-5">
+                    <label class="text-[11px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                        <span class="w-6 h-6 bg-cyan-100 text-cyan-600 rounded-lg flex items-center justify-center text-[10px]">1</span> Estructura Maestro
+                    </label>
+                    <div class="space-y-6 p-6 bg-slate-50 rounded-[2rem] border border-slate-200">
+                        <div class="space-y-3">
+                            <div class="flex justify-between text-[11px] font-black"><span>Ancho del Módulo</span><span id="val-w" class="text-cyan-600">460px</span></div>
+                            <input type="range" id="cfg-w" min="200" max="1000" value="460" oninput="window.syncUI()" class="w-full">
+                        </div>
+                        <div class="space-y-3">
+                            <div class="flex justify-between text-[11px] font-black"><span>Alto del Módulo</span><span id="val-h" class="text-cyan-600">150px</span></div>
+                            <input type="range" id="cfg-h" min="80" max="800" value="150" oninput="window.syncUI()" class="w-full">
+                        </div>
+                        <div class="space-y-3">
+                            <div class="flex justify-between text-[11px] font-black"><span>Redondeo de Esquinas</span><span id="val-rd-main" class="text-cyan-600">24px</span></div>
+                            <input type="range" id="cfg-rd-main" min="0" max="400" value="24" oninput="window.syncUI()" class="w-full">
+                        </div>
+                        <div class="flex items-center justify-between pt-4 border-t border-slate-200">
+                            <span class="text-[12px] font-black text-slate-700">Efecto Mica (Vidrio)</span>
+                            <label class="switch"><input type="checkbox" id="cfg-show-mica" checked onchange="window.syncUI()"><span class="slider-toggle"></span></label>
+                        </div>
+                        <div class="grid grid-cols-2 gap-6 pt-2">
+                            <div class="space-y-2">
+                                <span class="text-[9px] font-black text-slate-500 uppercase">Color de Base</span>
+                                <input type="color" id="cfg-bg-color" value="#0f172a" oninput="window.syncUI()" class="w-full h-11 rounded-2xl border-none cursor-pointer">
+                            </div>
+                            <div class="space-y-2">
+                                <span class="text-[9px] font-black text-slate-500 uppercase">Opacidad Real</span>
+                                <input type="range" id="cfg-op-val" min="0" max="100" value="70" oninput="window.syncUI()" class="w-full mt-2">
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="space-y-5">
+                    <label class="text-[11px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                        <span class="w-6 h-6 bg-cyan-100 text-cyan-600 rounded-lg flex items-center justify-center text-[10px]">2</span> Botón de Control
+                    </label>
+                    <div class="space-y-6 p-6 bg-slate-50 rounded-[2rem] border border-slate-200">
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="space-y-2 text-center">
+                                <span class="text-[8px] font-black text-slate-500 uppercase">Triángulo</span>
+                                <input type="color" id="cfg-btn-tri" value="#ffffff" oninput="window.syncUI()" class="w-full h-9 rounded-xl border-none cursor-pointer shadow-sm">
+                            </div>
+                            <div class="space-y-2 text-center">
+                                <span class="text-[8px] font-black text-slate-500 uppercase">Fondo</span>
+                                <input type="color" id="cfg-btn-bg" value="#00c4cc" oninput="window.syncUI()" class="w-full h-9 rounded-xl border-none cursor-pointer shadow-sm">
+                            </div>
+                            <div class="space-y-2 text-center">
+                                <span class="text-[8px] font-black text-slate-500 uppercase">Anillo</span>
+                                <input type="color" id="cfg-btn-contour" value="#ffffff" oninput="window.syncUI()" class="w-full h-9 rounded-xl border-none cursor-pointer shadow-sm">
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-[12px] font-black text-slate-700">Mostrar Anillo</span>
+                            <label class="switch"><input type="checkbox" id="cfg-show-contour" checked onchange="window.syncUI()"><span class="slider-toggle"></span></label>
+                        </div>
+                        <div class="space-y-3">
+                            <div class="flex justify-between text-[11px] font-black"><span>Redondeo del Botón</span><span id="val-rd-btn" class="text-cyan-600">100%</span></div>
+                            <input type="range" id="cfg-rd-btn" min="0" max="100" value="100" oninput="window.syncUI()" class="w-full">
+                        </div>
+                    </div>
+                </section>
+
+                <section class="space-y-5">
+                    <label class="text-[11px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                        <span class="w-6 h-6 bg-cyan-100 text-cyan-600 rounded-lg flex items-center justify-center text-[10px]">3</span> Tipografía y Fuentes
+                    </label>
+                    <div class="space-y-6 p-6 bg-slate-50 rounded-[2rem] border border-slate-200 shadow-sm">
+                        <div class="space-y-4">
+                            <div class="space-y-2">
+                                <span class="text-[9px] font-black text-slate-500 uppercase">Fuente Principal</span>
+                                <select id="cfg-font-type" onchange="window.syncUI()" class="w-full p-4 bg-white border rounded-2xl text-xs font-black shadow-sm outline-none">
+                                    <option value="font-sans">Sans Serif Modern</option>
+                                    <option value="font-serif">Elegant Serif</option>
+                                    <option value="font-mono">Technical Monospace</option>
+                                    <option value="font-impact">High Impact Display</option>
+                                </select>
+                            </div>
+                            <div class="space-y-2">
+                                <span class="text-[9px] font-black text-slate-500 uppercase">Fuente del Tiempo</span>
+                                <select id="cfg-font-prog" onchange="window.syncUI()" class="w-full p-4 bg-white border rounded-2xl text-xs font-black shadow-sm outline-none">
+                                    <option value="font-mono">Mono (Digital)</option>
+                                    <option value="font-sans">Sans (Limpio)</option>
+                                    <option value="font-impact">Impact (Fuerte)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="space-y-2 text-center">
+                                <span class="text-[8px] font-black text-slate-500 uppercase">Color Título</span>
+                                <input type="color" id="cfg-text-col" value="#ffffff" oninput="window.syncUI()" class="w-full h-9 rounded-xl border-none cursor-pointer">
+                            </div>
+                            <div class="space-y-2 text-center">
+                                <span class="text-[8px] font-black text-slate-500 uppercase">Color Subtítulo</span>
+                                <input type="color" id="cfg-sub-col" value="#94a3b8" oninput="window.syncUI()" class="w-full h-9 rounded-xl border-none cursor-pointer">
+                            </div>
+                        </div>
+                        <div class="space-y-2">
+                            <span class="text-[9px] font-black text-slate-500 uppercase">Color del Cronómetro</span>
+                            <input type="color" id="cfg-prog-text-col" value="#ffffff" oninput="window.syncUI()" class="w-full h-11 rounded-2xl border-none cursor-pointer">
+                        </div>
+                    </div>
+                </section>
+
+                <section class="space-y-5">
+                    <label class="text-[11px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                        <span class="w-6 h-6 bg-cyan-100 text-cyan-600 rounded-lg flex items-center justify-center text-[10px]">4</span> Barra de Progreso
+                    </label>
+                    <div class="space-y-6 p-6 bg-slate-50 rounded-[2rem] border border-slate-200 shadow-sm">
+                        <div class="grid grid-cols-3 gap-3">
+                            <button id="btn-prog-bar" onclick="window.setProgStyle('bar')" class="py-3 bg-cyan-600 text-white border rounded-2xl text-[10px] font-black uppercase hover:opacity-90 transition-all shadow-sm">Barra</button>
+                            <button id="btn-prog-wave" onclick="window.setProgStyle('wave')" class="py-3 bg-white text-slate-900 border rounded-2xl text-[10px] font-black uppercase hover:bg-slate-50 transition-all shadow-sm">Onda</button>
+                            <button id="btn-prog-spect" onclick="window.setProgStyle('spect')" class="py-3 bg-white text-slate-900 border rounded-2xl text-[10px] font-black uppercase hover:bg-slate-50 transition-all shadow-sm">Espectro</button>
+                        </div>
+                        <div class="grid grid-cols-2 gap-6">
+                            <div class="space-y-2">
+                                <span class="text-[9px] font-black text-slate-500 uppercase">Color de Carga</span>
+                                <input type="color" id="cfg-bar-acc" value="#00c4cc" oninput="window.syncUI()" class="w-full h-10 rounded-xl border-none cursor-pointer shadow-sm">
+                            </div>
+                            <div class="space-y-2">
+                                <span class="text-[9px] font-black text-slate-500 uppercase">Grosor (px)</span>
+                                <input type="range" id="cfg-bar-h" min="2" max="35" value="8" oninput="window.syncUI()" class="w-full mt-2">
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- TAB: CONTENIDO -->
+            <div id="tab-contenido" class="sidebar-tab-content space-y-6">
+                <div class="space-y-3">
+                    <label class="text-[11px] font-black text-slate-400 uppercase tracking-widest">Enlace Audio Directo</label>
+                    <input type="text" id="cfg-audio-url" placeholder="https://ejemplo.com/pista.mp3" onchange="window.validateAudioUrl(this)" class="w-full p-5 bg-slate-50 border rounded-3xl text-xs font-black shadow-inner outline-none">
+                    <p class="text-[9px] text-slate-400 px-2 mt-1 italic">Soporta enlaces de Google Drive (compartir) automáticamente.</p>
+                </div>
+                <div class="space-y-5">
+                    <label class="text-[11px] font-black text-slate-400 uppercase tracking-widest">Metadatos de Pista</label>
+                    <input type="text" id="cfg-track-title" value="Análisis de Frecuencia" oninput="window.syncUI()" class="w-full p-5 bg-slate-50 border rounded-3xl text-xs font-black outline-none">
+                    <input type="text" id="cfg-track-artist" value="Audio Studio Pro v4" oninput="window.syncUI()" class="w-full p-5 bg-slate-50 border rounded-3xl text-xs font-bold outline-none">
+                </div>
+            </div>
+
+            <!-- TAB: PRESETS -->
+            <div id="tab-presets" class="sidebar-tab-content space-y-4">
+                <button onclick="window.applyPreset('cyber')" class="w-full p-5 bg-black text-cyan-400 rounded-3xl text-[11px] font-black uppercase text-left border border-cyan-500/40 shadow-[0_0_25px_rgba(0,196,204,0.3)]">Cyber Neon Glass</button>
+                <button onclick="window.applyPreset('executive')" class="w-full p-5 bg-slate-900 text-white rounded-3xl text-[11px] font-black uppercase text-left border border-white/10 shadow-2xl">Executive Mica Dark</button>
+                <button onclick="window.applyPreset('minimal')" class="w-full p-5 bg-white text-slate-900 rounded-3xl text-[11px] font-black uppercase text-left border border-slate-200 shadow-xl">Minimalist Cloud</button>
+                <button onclick="window.applyPreset('classic')" class="w-full p-5 bg-amber-50 text-amber-900 rounded-3xl text-[11px] font-black uppercase text-left border border-amber-200 shadow-md">Vinyl Gold Edition</button>
+                <button onclick="window.applyPreset('deepspace')" class="w-full p-5 bg-[#020617] text-indigo-400 rounded-3xl text-[11px] font-black uppercase text-left border border-indigo-500/30 shadow-2xl">Deep Space Studio</button>
+            </div>
+        </div>
+
+        <div class="p-8 bg-white border-t border-slate-100">
+            <button onclick="window.publish()" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-black py-5 rounded-[2.5rem] shadow-2xl transition-all active:scale-95 text-xs uppercase tracking-widest">Publicar para Canva</button>
+        </div>
+    </aside>
+
+    <!-- ÁREA DE DISEÑO (CANVAS) -->
+    <main id="main-canvas" class="flex-1 relative canvas-area flex items-center justify-center p-16 overflow-hidden">
+        <div id="workspace-label" class="absolute top-10 text-[11px] font-black text-slate-500 uppercase tracking-[1em] opacity-30 pointer-events-none">Architect Workspace v4</div>
+        
+        <div id="player-master" class="relative overflow-hidden transition-all duration-300 shadow-2xl">
+            <div id="spect-layer" class="absolute inset-0 opacity-40 z-0 pointer-events-none hidden">
+                <div class="w-full h-full"><canvas id="audioChart"></canvas></div>
+            </div>
+
+            <div id="elements-container" class="relative z-10 w-full h-full">
+                <div id="drag-play" class="draggable" style="top: 35px; left: 35px;">
+                    <button onclick="window.toggleAudio()" id="play-btn-main" class="w-20 h-20 shadow-2xl">
+                        <div id="play-btn-contour"></div>
+                        <svg width="34" height="34" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                            <path id="path-icon" d="M8 5V19L19 12L8 5Z" />
+                        </svg>
+                    </button>
+                </div>
+                
+                <div id="drag-text" class="draggable" style="top: 35px; left: 140px; width: 280px;">
+                    <h3 id="ui-title" class="text-2xl font-black leading-none truncate mb-1 text-white">Análisis de Frecuencia</h3>
+                    <p id="ui-subtitle" class="text-[11px] font-black opacity-60 uppercase tracking-widest truncate text-slate-400">Audio Studio Pro v4</p>
+                </div>
+
+                <div id="drag-progress" class="draggable" style="top: 100px; left: 140px; width: 280px;">
+                    <div id="progress-ui" class="w-full bg-white/15 rounded-full overflow-hidden relative">
+                        <div id="progress-fill" class="h-full transition-all duration-300" style="width: 0%"></div>
+                        <div id="progress-wave" class="absolute inset-0 hidden"><div class="h-full w-full" id="wave-pulse-overlay"></div></div>
+                    </div>
+                    <div id="timer-group" class="flex justify-between mt-2 text-[11px] font-black opacity-90 tracking-tighter text-white">
+                        <span id="ui-now">00:00</span>
+                        <span id="ui-total">00:00</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- MODAL -->
+    <div id="modal-export" class="fixed inset-0 bg-slate-900/98 backdrop-blur-3xl z-[2000] hidden items-center justify-center p-8 text-center">
+        <div class="bg-white rounded-[3.5rem] p-12 max-w-sm w-full shadow-2xl border border-slate-100">
+            <h2 class="text-2xl font-black mb-3 tracking-tighter text-slate-800">Diseño Sincronizado</h2>
+            <p class="text-[11px] text-slate-500 mb-10 font-black uppercase">Copia este link para la herramienta Incrustar en Canva.</p>
+            <div id="export-url" class="bg-slate-50 p-6 rounded-3xl text-[10px] font-mono break-all border border-slate-200 mb-10 text-left text-slate-600 shadow-sm overflow-hidden"></div>
+            <button onclick="window.copyAndFinish()" class="w-full bg-slate-900 text-white font-black py-5 rounded-[2.5rem] hover:bg-black transition-all shadow-xl">COPIAR Y FINALIZAR</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
+        import { getFirestore, doc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+        import { getAuth, signInAnonymously, onAuthStateChanged, setPersistence, inMemoryPersistence } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+        import { getAnalytics } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js';
+
+        // --- CORE LOGIC VARIABLES ---
+        let activeProgStyle = 'bar';
+        let isPlaying = false;
+        const audio = new Audio();
+        audio.preload = "auto";
+        audio.crossOrigin = "anonymous"; // FIX PARA AUDIO EXTERNO
+        
+        let currentAuth = null;
+        let db, auth, analytics;
+        let chart; 
+
+        // DETECCIÓN DE MODO CORREGIDA: SOLO OCULTAR SI HAY ID
+        const urlParams = new URLSearchParams(window.location.search);
+        const savedId = urlParams.get('id');
+        
+        if (savedId) {
+            document.body.classList.add('is-embedded');
+            document.getElementById('loader').style.opacity = '1';
+        } else {
+             document.getElementById('loader').style.display = 'none';
+        }
+
+        window.validateAudioUrl = (input) => {
+            let url = input.value.trim();
+            if (url.includes('drive.google.com')) {
+                const match = url.match(/\/d\/(.+?)\//) || url.match(/id=(.+?)(&|$)/);
+                if (match && match[1]) {
+                    url = `https://docs.google.com/uc?export=download&id=${match[1]}`;
+                    input.value = url;
+                }
+            }
+            // FIX DROPBOX AUTOMÁTICO
+            if (url.includes('dropbox.com') && url.includes('dl=0')) {
+                url = url.replace('dl=0', 'dl=1');
+                input.value = url;
+            }
+            window.syncUI();
+        };
+
+        window.syncUI = () => {
+            const get = (id) => document.getElementById(id);
+            const master = get('player-master');
+            if (!master) return;
+
+            const w = get('cfg-w').value;
+            const h = get('cfg-h').value;
+            const rd = get('cfg-rd-main').value;
+            const op = get('cfg-op-val').value;
+            const bg = get('cfg-bg-color').value;
+            const showMica = get('cfg-show-mica').checked;
+
+            master.style.width = w + 'px';
+            master.style.height = h + 'px';
+            master.style.borderRadius = rd + 'px';
+            master.style.backgroundColor = hexToRgba(bg, op / 100);
+            master.classList.toggle('mica-layer', showMica);
+            
+            if(get('val-w')) get('val-w').innerText = w + 'px';
+            if(get('val-h')) get('val-h').innerText = h + 'px';
+            if(get('val-rd-main')) get('val-rd-main').innerText = rd + 'px';
+
+            const btn = get('play-btn-main');
+            const contour = get('play-btn-contour');
+            if (btn && contour) {
+                btn.style.color = get('cfg-btn-tri').value;
+                btn.style.backgroundColor = get('cfg-btn-bg').value;
+                btn.style.borderRadius = get('cfg-rd-btn').value + '%';
+                const showCont = get('cfg-show-contour').checked;
+                contour.style.setProperty('--contour-color', showCont ? get('cfg-btn-contour').value : 'transparent');
+                contour.style.setProperty('--contour-width', showCont ? '3px' : '0px');
+                contour.style.borderRadius = get('cfg-rd-btn').value + '%';
+            }
+
+            const textMod = get('drag-text');
+            const timerGrp = get('timer-group');
+            if (textMod && timerGrp) {
+                textMod.className = `draggable ${get('cfg-font-type').value}`;
+                timerGrp.className = `flex justify-between mt-2 text-[11px] font-black opacity-90 tracking-tighter ${get('cfg-font-prog').value}`;
+                timerGrp.style.color = get('cfg-prog-text-col').value;
+                get('ui-title').style.color = get('cfg-text-col').value;
+                get('ui-title').innerText = get('cfg-track-title').value;
+                get('ui-subtitle').style.color = get('cfg-sub-col').value;
+                get('ui-subtitle').innerText = get('cfg-track-artist').value;
+            }
+
+            const progFill = get('progress-fill');
+            if (progFill) {
+                const acc = get('cfg-bar-acc').value;
+                get('progress-ui').style.height = get('cfg-bar-h').value + 'px';
+                progFill.style.backgroundColor = acc;
+                
+                const wave = get('progress-wave');
+                const spect = get('spect-layer');
+                if (activeProgStyle === 'wave') {
+                    wave.classList.remove('hidden');
+                    document.getElementById('wave-pulse-overlay').style.backgroundColor = acc;
+                    document.getElementById('wave-pulse-overlay').classList.add('wave-active');
+                    spect.classList.add('hidden');
+                } else if (activeProgStyle === 'spect') {
+                    wave.classList.add('hidden');
+                    spect.classList.remove('hidden');
+                } else {
+                    wave.classList.add('hidden');
+                    spect.classList.add('hidden');
+                }
+            }
+        };
+
+        window.showTab = (n) => {
+            document.querySelectorAll('.sidebar-tab-content').forEach(c => c.classList.remove('active'));
+            ['estilo', 'contenido', 'presets'].forEach(t => {
+                const btn = document.getElementById('btn-'+t);
+                if (btn) {
+                    btn.classList.remove('border-cyan-500', 'text-cyan-600');
+                    btn.classList.add('border-transparent', 'text-slate-400');
+                }
+            });
+            const activeTab = document.getElementById('tab-'+n);
+            const activeBtn = document.getElementById('btn-'+n);
+            if (activeTab) activeTab.classList.add('active');
+            if (activeBtn) {
+                activeBtn.classList.remove('border-transparent', 'text-slate-400');
+                activeBtn.classList.add('border-cyan-500', 'text-cyan-600');
+            }
+        };
+
+        window.setProgStyle = (s) => {
+            activeProgStyle = s;
+            ['bar', 'wave', 'spect'].forEach(mode => {
+                const btn = document.getElementById('btn-prog-' + mode);
+                if (btn) {
+                    if (mode === s) {
+                        btn.classList.remove('bg-white', 'text-slate-900');
+                        btn.classList.add('bg-cyan-600', 'text-white');
+                    } else {
+                        btn.classList.add('bg-white', 'text-slate-900');
+                        btn.classList.remove('bg-cyan-600', 'text-white');
+                    }
+                }
+            });
+            window.syncUI();
+        };
+
+        window.toggleAudio = () => {
+            const url = document.getElementById('cfg-audio-url').value;
+            if (!url) return;
+            
+            if (audio.src !== url) {
+                audio.src = url;
+                audio.load();
+            }
+
+            const path = document.getElementById('path-icon');
+            if (audio.paused) {
+                audio.play().then(() => {
+                    isPlaying = true;
+                    path.setAttribute('d', 'M6 19h4V5H6v14zm8-14v14h4V5h-4z');
+                    renderLoop();
+                }).catch(e => console.error("Error al reproducir audio:", e));
+            } else {
+                audio.pause(); isPlaying = false;
+                path.setAttribute('d', 'M8 5V19L19 12L8 5Z');
+            }
+        };
+
+        window.publish = async () => {
+            if (!currentAuth) return;
+            const id = Math.random().toString(36).substring(2, 10);
+            const data = {
+                w: document.getElementById('cfg-w').value,
+                h: document.getElementById('cfg-h').value,
+                rdMain: document.getElementById('cfg-rd-main').value,
+                op: document.getElementById('cfg-op-val').value,
+                bg: document.getElementById('cfg-bg-color').value,
+                title: encodeURIComponent(document.getElementById('cfg-track-title').value),
+                artist: encodeURIComponent(document.getElementById('cfg-track-artist').value),
+                url: document.getElementById('cfg-audio-url').value,
+                // Guardar resto de estilos
+                btnTri: document.getElementById('cfg-btn-tri').value,
+                btnBg: document.getElementById('cfg-btn-bg').value,
+                btnContour: document.getElementById('cfg-btn-contour').value,
+                showContour: document.getElementById('cfg-show-contour').checked,
+                rdBtn: document.getElementById('cfg-rd-btn').value,
+                fontType: document.getElementById('cfg-font-type').value,
+                fontProg: document.getElementById('cfg-font-prog').value,
+                textCol: document.getElementById('cfg-text-col').value,
+                subCol: document.getElementById('cfg-sub-col').value,
+                progTextCol: document.getElementById('cfg-prog-text-col').value,
+                barAcc: document.getElementById('cfg-bar-acc').value,
+                barH: document.getElementById('cfg-bar-h').value,
+                showMica: document.getElementById('cfg-show-mica').checked,
+                // Resto de datos
+                progStyle: activeProgStyle,
+                m1: { x: parseFloat(document.getElementById('drag-play').style.left), y: parseFloat(document.getElementById('drag-play').style.top) },
+                m2: { x: parseFloat(document.getElementById('drag-text').style.left), y: parseFloat(document.getElementById('drag-text').style.top) },
+                m3: { x: parseFloat(document.getElementById('drag-progress').style.left), y: parseFloat(document.getElementById('drag-progress').style.top) }
+            };
+
+            try {
+                const appId = 'audio-studio-pro';
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'designs', id), data);
+                
+                // NOTA IMPORTANTE: LA URL BASE SE CALCULA AUTOMÁTICAMENTE
+                // O PUEDES DEJARLO DINÁMICO ASÍ:
+                const baseUrl = window.location.origin;
+                const url = `${baseUrl}/?id=${id}`;
+                
+                document.getElementById('export-url').innerText = url;
+                document.getElementById('modal-export').classList.replace('hidden', 'flex');
+            } catch(e) {
+                 console.error("Error guardando diseño:", e);
+            }
+        };
+
+        window.copyAndFinish = () => {
+            const u = document.getElementById('export-url').innerText;
+            navigator.clipboard.writeText(u);
+            document.getElementById('modal-export').classList.replace('flex', 'hidden');
+        };
+
+        window.applyPreset = (p) => {
+            const g = (id) => document.getElementById(id);
+            if (p === 'cyber') {
+                g('cfg-bg-color').value = '#000000'; g('cfg-op-val').value = 85; 
+                g('cfg-text-col').value = '#00f2ff'; g('cfg-bar-acc').value = '#ff00ff';
+                g('cfg-font-type').value = 'font-mono'; window.setProgStyle('spect');
+            } else if (p === 'executive') {
+                g('cfg-bg-color').value = '#0f172a'; g('cfg-op-val').value = 60; 
+                g('cfg-text-col').value = '#ffffff'; g('cfg-bar-acc').value = '#00c4cc';
+                g('cfg-font-type').value = 'font-sans'; window.setProgStyle('bar');
+            } else if (p === 'minimal') {
+                g('cfg-bg-color').value = '#ffffff'; g('cfg-op-val').value = 100;
+                g('cfg-text-col').value = '#1e293b'; g('cfg-bar-acc').value = '#3b82f6';
+                g('cfg-font-type').value = 'font-sans'; window.setProgStyle('wave');
+            } else if (p === 'classic') {
+                g('cfg-bg-color').value = '#fef3c7'; g('cfg-op-val').value = 100;
+                g('cfg-text-col').value = '#451a03'; g('cfg-bar-acc').value = '#b45309';
+                g('cfg-font-type').value = 'font-serif'; window.setProgStyle('bar');
+            } else if (p === 'deepspace') {
+                g('cfg-bg-color').value = '#020617'; g('cfg-op-val').value = 40;
+                g('cfg-text-col').value = '#818cf8'; g('cfg-bar-acc').value = '#6366f1';
+                g('cfg-font-type').value = 'font-mono'; window.setProgStyle('spect');
+            }
+            window.syncUI();
+        };
+
+        function hexToRgba(hex, a) {
+            let r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
+            return `rgba(${r}, ${g}, ${b}, ${a})`;
+        }
+
+        function renderLoop() {
+            if (!isPlaying) return;
+            if (chart && activeProgStyle === 'spect') {
+                chart.data.datasets[0].data = chart.data.datasets[0].data.map(() => Math.random() * 100);
+                chart.update();
+            }
+            const pct = (audio.currentTime / audio.duration) * 100;
+            const fill = document.getElementById('progress-fill');
+            if(fill) fill.style.width = pct + '%';
+            
+            const f = (t) => {
+                if (isNaN(t)) return "00:00";
+                const m = Math.floor(t/60), s = Math.floor(t%60);
+                return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+            };
+            const uiNow = document.getElementById('ui-now');
+            const uiTotal = document.getElementById('ui-total');
+            if(uiNow) uiNow.innerText = f(audio.currentTime);
+            if(uiTotal) uiTotal.innerText = f(audio.duration);
+            requestAnimationFrame(renderLoop);
+        }
+
+        // --- FIREBASE INIT ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyBWelUwvZAdKlS4ks7MlL-ALP4f3A0ok88",
+            authDomain: "audiostudiopro-a876a.firebaseapp.com",
+            projectId: "audiostudiopro-a876a",
+            storageBucket: "audiostudiopro-a876a.firebasestorage.app",
+            messagingSenderId: "618218270805",
+            appId: "1:618218270805:web:7c4e63066a770cf095e4dc",
+            measurementId: "G-EE97PW6QZL"
+        };
+        const fbApp = initializeApp(firebaseConfig);
+        auth = getAuth(fbApp);
+        db = getFirestore(fbApp);
+        analytics = getAnalytics(fbApp);
+        const appId = 'audio-studio-pro';
+
+        // PERSISTENCIA EN MEMORIA: OBLIGATORIO PARA CANVA IFRAMES
+        setPersistence(auth, inMemoryPersistence)
+            .then(() => {
+                return signInAnonymously(auth);
+            })
+            .catch((error) => {
+                console.error("Error Auth:", error);
+                document.getElementById('loader').style.display = 'none';
+            });
+
+        onAuthStateChanged(auth, (u) => {
+            currentAuth = u;
+            if (u && savedId) {
+                getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'designs', savedId)).then(snap => {
+                    if (snap.exists()) {
+                        const d = snap.data();
+                        const g = (id) => document.getElementById(id);
+                        
+                        g('cfg-w').value = d.w;
+                        g('cfg-h').value = d.h;
+                        g('cfg-bg-color').value = d.bg;
+                        g('cfg-op-val').value = d.op;
+                        g('cfg-rd-main').value = d.rdMain || 24;
+                        g('cfg-audio-url').value = d.url || '';
+                        g('cfg-track-title').value = decodeURIComponent(d.title || '');
+                        g('cfg-track-artist').value = decodeURIComponent(d.artist || '');
+
+                        // Recuperar estilos extra
+                        if (d.btnBg) g('cfg-btn-bg').value = d.btnBg;
+                        if (d.btnTri) g('cfg-btn-tri').value = d.btnTri;
+                        if (d.btnContour) g('cfg-btn-contour').value = d.btnContour;
+                        if (d.rdBtn) g('cfg-rd-btn').value = d.rdBtn;
+                        if (d.fontType) g('cfg-font-type').value = d.fontType;
+                        if (d.fontProg) g('cfg-font-prog').value = d.fontProg;
+                        if (d.textCol) g('cfg-text-col').value = d.textCol;
+                        if (d.subCol) g('cfg-sub-col').value = d.subCol;
+                        if (d.progTextCol) g('cfg-prog-text-col').value = d.progTextCol;
+                        if (d.barAcc) g('cfg-bar-acc').value = d.barAcc;
+                        if (d.barH) g('cfg-bar-h').value = d.barH;
+                        g('cfg-show-contour').checked = d.showContour !== undefined ? d.showContour : true;
+                        g('cfg-show-mica').checked = d.showMica !== undefined ? d.showMica : true;
+
+                        if(d.m1) { g('drag-play').style.left = d.m1.x + '%'; g('drag-play').style.top = d.m1.y + '%'; }
+                        if(d.m2) { g('drag-text').style.left = d.m2.x + '%'; g('drag-text').style.top = d.m2.y + '%'; }
+                        if(d.m3) { g('drag-progress').style.left = d.m3.x + '%'; g('drag-progress').style.top = d.m3.y + '%'; }
+                        window.setProgStyle(d.progStyle || 'bar');
+                        window.syncUI();
+                    }
+                    // Ocultar loader tras cargar datos
+                    const loader = document.getElementById('loader');
+                    if (loader) {
+                        loader.style.opacity = '0';
+                        setTimeout(() => loader.style.display = 'none', 500);
+                    }
+                }).catch(e =>{
+                     console.error("Error cargando datos:", e);
+                     document.getElementById('loader').style.display = 'none';
+                });
+            } else if (!savedId) {
+                document.getElementById('loader').style.display = 'none';
+            }
+        });
+
+        window.onload = () => {
+            const canvasEl = document.getElementById('audioChart');
+            if (canvasEl) {
+                const ctx = canvasEl.getContext('2d');
+                chart = new Chart(ctx, {
+                    type: 'bar',
+                    data: { labels: Array(22).fill(''), datasets: [{ data: Array(22).fill(0), backgroundColor: '#00c4cc', borderRadius: 20, barPercentage: 0.6 }] },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { display: false, min: 0, max: 100 }, x: { display: false } }, plugins: { legend: false }, animation: false }
+                });
+            }
+            window.syncUI();
+        };
+
+        // DRAG LOGIC (DESACTIVADO EN EMBED)
+        let activeMod = null;
+        if (!savedId) {
+            document.addEventListener('mousedown', (e) => {
+                const t = e.target.closest('.draggable');
+                if (t) { activeMod = t; const r = t.getBoundingClientRect(); activeMod._x = e.clientX - r.left; activeMod._y = e.clientY - r.top; }
+            });
+            document.addEventListener('mousemove', (e) => {
+                if (activeMod) {
+                    const p = document.getElementById('player-master').getBoundingClientRect();
+                    let x = ((e.clientX - p.left - activeMod._x) / p.width) * 100;
+                    let y = ((e.clientY - p.top - activeMod._y) / p.height) * 100;
+                    activeMod.style.left = Math.max(0, Math.min(x, 90)) + '%';
+                    activeMod.style.top = Math.max(0, Math.min(y, 85)) + '%';
+                }
+            });
+            document.addEventListener('mouseup', () => activeMod = null);
+        }
+    </script>
+</body>
+</html>
